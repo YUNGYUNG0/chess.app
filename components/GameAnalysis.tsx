@@ -1,18 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-interface AnalyzedMove {
-  ply: number;
-  moveNumber: number;
-  san: string;
-  side: "white" | "black";
-  evalBeforeCp: number;
-  evalAfterCp: number;
-  cpLoss: number;
-  bestMoveSan?: string;
-  classification: "best" | "good" | "inaccuracy" | "mistake" | "blunder";
-}
+import { AnalyzedMove, BoardReview } from "@/components/BoardReview";
 
 interface SideSummary {
   blunders: number;
@@ -28,27 +17,9 @@ interface GameAnalysisData {
   cached?: boolean;
 }
 
-const LABELS: Record<AnalyzedMove["classification"], string> = {
-  best: "nejlepší",
-  good: "",
-  inaccuracy: "nepřesnost",
-  mistake: "chyba",
-  blunder: "hrubka",
-};
-
-function formatEval(cp: number): string {
-  const pawns = cp / 100;
-  const sign = pawns > 0 ? "+" : "";
-  if (Math.abs(cp) >= 90000) {
-    const mateIn = Math.round((100000 - Math.abs(cp)) / 1);
-    return cp > 0 ? `#${mateIn}` : `#-${mateIn}`;
-  }
-  return `${sign}${pawns.toFixed(1)}`;
-}
-
 function EvalSparkline({ evals }: { evals: number[] }) {
   const width = 600;
-  const height = 60;
+  const height = 44;
   const clamp = (v: number) => Math.max(-800, Math.min(800, v));
   const points = evals
     .map((v, i) => {
@@ -66,7 +37,15 @@ function EvalSparkline({ evals }: { evals: number[] }) {
   );
 }
 
-export function GameAnalysis({ pgn, gameId }: { pgn: string; gameId: string }) {
+export function GameAnalysis({
+  pgn,
+  gameId,
+  youAreWhite,
+}: {
+  pgn: string;
+  gameId: string;
+  youAreWhite: boolean;
+}) {
   const [data, setData] = useState<GameAnalysisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,21 +119,7 @@ export function GameAnalysis({ pgn, gameId }: { pgn: string; gameId: string }) {
         })}
       </div>
 
-      <div className="move-table">
-        {data.moves.map((m) => (
-          <div key={m.ply} className={`move-row move-row--${m.classification}`}>
-            <span className="move-row__num">
-              {m.side === "white" ? `${m.moveNumber}.` : `${m.moveNumber}…`}
-            </span>
-            <span className="move-row__san">{m.san}</span>
-            <span className="move-row__label">{LABELS[m.classification]}</span>
-            {m.bestMoveSan && (
-              <span className="move-row__best">lepší bylo {m.bestMoveSan}</span>
-            )}
-            <span className="move-row__eval">{formatEval(m.evalAfterCp)}</span>
-          </div>
-        ))}
-      </div>
+      <BoardReview moves={data.moves} youAreWhite={youAreWhite} />
     </div>
   );
 }

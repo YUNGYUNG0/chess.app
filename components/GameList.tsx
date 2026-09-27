@@ -60,7 +60,7 @@ export function GameList({ games, username }: { games: NormalizedGame[]; usernam
                 <a href={game.url} target="_blank" rel="noreferrer" className="game-item__source-link">
                   otevřít na {game.platform === "chesscom" ? "chess.com" : "lichess"} ↗
                 </a>
-                <GameAnalysis pgn={game.pgn} gameId={game.id} />
+                <GameAnalysis pgn={game.pgn} gameId={game.id} youAreWhite={youAreWhite} />
               </div>
             )}
           </div>

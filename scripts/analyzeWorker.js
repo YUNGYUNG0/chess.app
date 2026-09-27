@@ -16,7 +16,8 @@ const { createEngine } = require(path.join(__dirname, "..", "lib", "stockfishEng
 const MATE_SCORE = 100000;
 const MAX_PLIES = 80;
 
-function classify(cpLoss) {
+function classify(cpLoss, isTopChoice) {
+  if (isTopChoice && cpLoss <= 10) return "best";
   if (cpLoss >= 300) return "blunder";
   if (cpLoss >= 100) return "mistake";
   if (cpLoss >= 50) return "inaccuracy";
@@ -131,7 +132,9 @@ async function analyzePgn(pgn, depth) {
       const cpLoss = Math.max(0, moverBefore - moverAfter);
 
       const bestUci = bestMoveUciAt[i];
-      const bestMoveSan = bestUci ? uciToSan(fens[i], bestUci) : undefined;
+      const bestSanRaw = bestUci ? uciToSan(fens[i], bestUci) : undefined;
+      const isTopChoice = bestSanRaw ? bestSanRaw === p.san : cpLoss === 0;
+      const bestMoveSan = bestSanRaw && bestSanRaw !== p.san ? bestSanRaw : undefined;
 
       return {
         ply: i + 1,
@@ -142,8 +145,8 @@ async function analyzePgn(pgn, depth) {
         evalBeforeCp: evalBeforeWhitePov,
         evalAfterCp: evalAfterWhitePov,
         cpLoss,
-        bestMoveSan: bestMoveSan && bestMoveSan !== p.san ? bestMoveSan : undefined,
-        classification: classify(cpLoss),
+        bestMoveSan,
+        classification: classify(cpLoss, isTopChoice),
       };
     });
 
