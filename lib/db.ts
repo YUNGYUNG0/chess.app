@@ -38,14 +38,39 @@ declare global {
   var __chessAppDb: Database.Database | undefined;
 }
 
-function createDb(): Database.Database {
-  const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), "data", "app.db");
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+function resolveDbPath(): string {
+  if (process.env.DATABASE_PATH) return process.env.DATABASE_PATH;
+  // Vercel (and most serverless platforms) only allow writes under /tmp --
+  // everything else in the deployed function is a read-only filesystem.
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return path.join("/tmp", "chess-app", "app.db");
+  }
+  return path.join(process.cwd(), "data", "app.db");
+}
 
+function openAt(dbPath: string): Database.Database {
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   db.exec(SCHEMA_SQL);
   return db;
+}
+
+function createDb(): Database.Database {
+  const primaryPath = resolveDbPath();
+  try {
+    return openAt(primaryPath);
+  } catch (err) {
+    // Belt-and-braces fallback for any other read-only-filesystem surprise:
+    // better a working, non-persistent cache than every request crashing.
+    const fallbackPath = path.join("/tmp", "chess-app", "app.db");
+    if (primaryPath === fallbackPath) throw err;
+    console.error(
+      `[db] Falling back to ${fallbackPath} -- could not open ${primaryPath}:`,
+      err
+    );
+    return openAt(fallbackPath);
+  }
 }
 
 // Reuse a single connection across hot reloads in dev; each API route
